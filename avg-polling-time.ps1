@@ -23,26 +23,24 @@ function Get-PollingTime {
 
     foreach ($element in $timeStringArray)
     {
+        $amount = ($element -split '\D')[0]
         $units = ($element -split '\d')[-1]
+        
         if ($units -eq "h")
         {
-            $h = ($element -split '\D')[0]
-            $timespan = $timespan.Add([TimeSpan]::FromHours($h))
+            $timespan = $timespan.Add([TimeSpan]::FromHours($amount))
         }
         elseif ($units -eq "m")
         {
-            $m = ($element -split '\D')[0]
-            $timespan = $timespan.Add([TimeSpan]::FromMinutes($m))
+            $timespan = $timespan.Add([TimeSpan]::FromMinutes($amount))
         }
         elseif ($units -eq "s")
         {
-            $s = ($element -split '\D')[0]
-            $timespan = $timespan.Add([TimeSpan]::FromSeconds($s))
+            $timespan = $timespan.Add([TimeSpan]::FromSeconds($amount))
         }
         elseif ($units -eq "ms")
         {
-            $ms = ($element -split '\D')[0]
-            $timespan = $timespan.Add([TimeSpan]::FromMilliseconds($ms))
+            $timespan = $timespan.Add([TimeSpan]::FromMilliseconds($amount))
         }
         else
         {
