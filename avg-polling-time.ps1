@@ -130,7 +130,7 @@ foreach ($line in Get-Content $logsFolder/teamcity-vcs.log*) {
 "Total time spent polling: $totalTime"
 "Sucessful polls: $successfulPolls"
 "Average polling time: $avgPollTime"
-"It will take $suggestedPollingInterval to poll $vcsRootCount VCS Roots in $pollerThreadCount pollerThreadCount$pollerThreadCount"
+"It will take $suggestedPollingInterval to poll $vcsRootCount VCS Roots in $pollerThreadCount threads"
 
 ## Show longest polling attempts
 
