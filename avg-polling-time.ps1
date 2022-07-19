@@ -1,8 +1,8 @@
-# Calculate average VCS polling time
+$logsFolder = "C:\Users\Anatoly.Cherenkov\Downloads\4171080\teamcity_server_logs_2022-07-18"
+$vcsRootCount = 10709
+$pollerThreadCount = 10
 
-$logsFolder = "C:\Users\Anatoly.Cherenkov\Downloads\4028621"
-$vcsRoots = 1463
-$threads = 10
+# Calculate average VCS polling time
 
 function Get-PollingTime {
     param (
@@ -63,9 +63,9 @@ foreach ($line in Get-Content $logsFolder/teamcity-vcs.log*) {
     }
 }
 [TimeSpan]$avgPollTime = $totalTime / $successfulPolls
-[TimeSpan]$suggestedPollingInterval = $avgPollTime * $vcsRoots / $threads
+[TimeSpan]$suggestedPollingInterval = $avgPollTime * $vcsRootCount / $pollerThreadCount
 
 "Total time spent polling: $totalTime"
 "Sucessful polls: $successfulPolls"
 "Average polling time: $avgPollTime"
-"It will take $suggestedPollingInterval to poll $vcsRoots VCS Roots in $threads threads"
+"It will take $suggestedPollingInterval to poll $vcsRootCount VCS Roots in $pollerThreadCount pollerThreadCount$pollerThreadCount"
