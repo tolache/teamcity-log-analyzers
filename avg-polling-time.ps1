@@ -1,5 +1,5 @@
-$logsFolder = "C:\Users\Anatoly.Cherenkov\Downloads\4171080\teamcity_server_logs_2022-07-18"
-$vcsRootCount = 10709
+$logsFolder = "C:\Users\XXXX\Downloads\XXXX\VCS"
+$vcsRootCount = 1800
 $pollerThreadCount = 10
 
 function Get-PollingDuration {
@@ -58,7 +58,21 @@ function Get-VcsName {
 
     if ($InputLogLine -notmatch 'Finish collecting changes successfully (for|from) VCS root "(?<content>.*?)" {instance id=')
     {
-        $InputLogLine > C:\Temp\debug.log
+        throw "Log line doesn't contain a VCS name: $InputLogLine"
+    }
+
+    return $matches['content']
+}
+
+function Get-VcsRootId {
+    param (
+        [Parameter(Position = 0)]
+        [string]
+        $InputLogLine
+    )
+
+    if ($InputLogLine -notmatch 'Finish collecting changes successfully (for|from) VCS root .*? parent id=(?<content>.*?), description')
+    {
         throw "Log line doesn't contain a VCS name: $InputLogLine"
     }
 
@@ -86,12 +100,14 @@ class PollingAttempt
 {
     [ValidateNotNullOrEmpty()][DateTime]$Time
     [ValidateNotNullOrEmpty()][string]$VcsName
+    [ValidateNotNullOrEmpty()][string]$VcsRootId
     [ValidateNotNullOrEmpty()][TimeSpan]$Duration
     [ValidateNotNullOrEmpty()][string]$RawLogLine
     
-    PollingAttempt($Time, $VcsName, $Duration, $RawLogLine) {
+    PollingAttempt($Time, $VcsName, $VcsRootId, $Duration, $RawLogLine) {
         $this.Time = $Time
         $this.VcsName = $VcsName
+        $this.VcsRootId = $VcsRootId
         $this.Duration = $Duration
         $this.RawLogLine = $RawLogLine
     }
@@ -112,9 +128,11 @@ foreach ($line in Get-Content $logsFolder/teamcity-vcs.log*) {
 
         $time = Get-PollingTime $line
         $vcsName = Get-VcsName $line
+        $vcsRootId = Get-VcsRootId $line
         $currentPollingAttempt = [PollingAttempt]::new(
             $time,
-            $vcsName,
+            $vcsName, 
+            $vcsRootId,
             $currentPollDuration,
             $line
         )
@@ -135,6 +153,4 @@ foreach ($line in Get-Content $logsFolder/teamcity-vcs.log*) {
 ## Show longest polling attempts
 
 $sortedPolls = $pollingAttempts | Sort-Object -Property Duration -Descending
-foreach ($poll in $sortedPolls) {
-    Write-Output $poll
-}
+Write-Output $sortedPolls
