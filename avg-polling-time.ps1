@@ -49,7 +49,7 @@ function Get-PollingDuration {
     return $timeSpan
 }
 
-function Get-VcsName {
+function Get-VcsRootName {
     param (
         [Parameter(Position = 0)]
         [string]
@@ -99,14 +99,14 @@ function Get-PollingTime {
 class PollingAttempt
 {
     [ValidateNotNullOrEmpty()][DateTime]$Time
-    [ValidateNotNullOrEmpty()][string]$VcsName
+    [ValidateNotNullOrEmpty()][string]$VcsRootName
     [ValidateNotNullOrEmpty()][string]$VcsRootId
     [ValidateNotNullOrEmpty()][TimeSpan]$Duration
     [ValidateNotNullOrEmpty()][string]$RawLogLine
     
-    PollingAttempt($Time, $VcsName, $VcsRootId, $Duration, $RawLogLine) {
+    PollingAttempt($Time, $VcsRootName, $VcsRootId, $Duration, $RawLogLine) {
         $this.Time = $Time
-        $this.VcsName = $VcsName
+        $this.VcsRootName = $VcsRootName
         $this.VcsRootId = $VcsRootId
         $this.Duration = $Duration
         $this.RawLogLine = $RawLogLine
@@ -127,11 +127,11 @@ foreach ($line in Get-Content $logsFolder/teamcity-vcs.log*) {
         $successfulPolls++
 
         $time = Get-PollingTime $line
-        $vcsName = Get-VcsName $line
+        $vcsRootName = Get-VcsRootName $line
         $vcsRootId = Get-VcsRootId $line
         $currentPollingAttempt = [PollingAttempt]::new(
             $time,
-            $vcsName, 
+            $vcsRootName, 
             $vcsRootId,
             $currentPollDuration,
             $line
