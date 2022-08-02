@@ -1,6 +1,13 @@
-$logsFolder = "C:\Users\XXXX\Downloads\XXXX\VCS"
-$vcsRootCount = 1800
-$pollerThreadCount = 10
+$logsFolder = "C:\Users\Anatoly.Cherenkov\Downloads\4198374\VCSNodeLogs"
+$vcsRootCount = 3052
+$pollerThreadCount = 50
+
+# Global Variables
+$pollingAttempts = [System.Collections.ArrayList]::new()
+[TimeSpan]$totalTime = [TimeSpan]::FromMilliseconds(0)
+[Int32]$global:finishedPollCount = 0
+[Int32]$global:successfulPollCount = 0
+[Int32]$global:errorPollCount = 0
 
 function Get-PollingDuration {
     param (
@@ -56,7 +63,7 @@ function Get-VcsRootName {
         $InputLogLine
     )
 
-    if ($InputLogLine -notmatch 'Finish collecting changes successfully (for|from) VCS root "(?<content>.*?)" {instance id=')
+    if ($InputLogLine -notmatch 'Finish collecting changes (successfully|with errors) (for|from) VCS root "(?<content>.*?)" {instance id=')
     {
         throw "Log line doesn't contain a VCS name: $InputLogLine"
     }
@@ -71,7 +78,7 @@ function Get-VcsRootId {
         $InputLogLine
     )
 
-    if ($InputLogLine -notmatch 'Finish collecting changes successfully (for|from) VCS root .*? parent id=(?<content>.*?), description')
+    if ($InputLogLine -notmatch 'Finish collecting changes (successfully|with errors) (for|from) VCS root .*? parent id=(?<content>.*?), description')
     {
         throw "Log line doesn't contain a VCS name: $InputLogLine"
     }
@@ -96,16 +103,43 @@ function Get-PollingTime {
     return $timestamp
 }
 
+function Get-PollingStatus {
+    param (
+        [Parameter(Position = 0)]
+        [string]
+        $InputLogLine
+    )
+
+    if ($InputLogLine -notmatch 'Finish collecting changes (?<content>.*?) (for|from) VCS root')
+    {
+        throw "Log line doesn't contain a 'successfully' or 'with errors' status: $InputLogLine"
+    }
+    
+    $statusString = $Matches['content']
+    if ($statusString -eq "successfully") {
+        return [PollingStatus].GetEnumValues()[0]
+    } else {
+        return [PollingStatus].GetEnumValues()[1]
+    }
+}
+
+enum PollingStatus {
+    successful = 0
+    withErrors = 1
+}
+
 class PollingAttempt
 {
     [ValidateNotNullOrEmpty()][DateTime]$Time
+    [ValidateNotNullOrEmpty()][PollingStatus]$Status
     [ValidateNotNullOrEmpty()][string]$VcsRootName
     [ValidateNotNullOrEmpty()][string]$VcsRootId
     [ValidateNotNullOrEmpty()][TimeSpan]$Duration
     [ValidateNotNullOrEmpty()][string]$RawLogLine
     
-    PollingAttempt($Time, $VcsRootName, $VcsRootId, $Duration, $RawLogLine) {
+    PollingAttempt($Time, $Status, $VcsRootName, $VcsRootId, $Duration, $RawLogLine) {
         $this.Time = $Time
+        $this.Status = $Status
         $this.VcsRootName = $VcsRootName
         $this.VcsRootId = $VcsRootId
         $this.Duration = $Duration
@@ -113,24 +147,42 @@ class PollingAttempt
     }
 }
 
+function Update-PollingCounts {
+    param (
+        [Parameter(Position = 0)]
+        [PollingStatus]
+        $Status
+    )
+    
+    $argumentType = $Status.GetType().Name
+    if ($argumentType -ne "PollingStatus") {
+        throw "Type of arguemnt '$Status' is not a [PollingStatus]. Argument type is '$argumentType'"
+    }
+
+    $global:finishedPollCount++
+    if ($Status -eq [PollingStatus].GetEnumValues()[0]) {
+        $global:successfulPollCount++
+    } elseif ($Status -eq [PollingStatus].GetEnumValues()[1]) {
+        $global:errorPollCount++
+    } else {
+        throw "Unknown status '$Status'. Expected 'successful' or 'withErrors'"
+    }
+}
+
 # Calculate and show stats
-$pollingAttempts = [System.Collections.ArrayList]::new() 
-
-[TimeSpan]$totalTime = [TimeSpan]::FromMilliseconds(0)
-[Int32]$successfulPolls = 0
-
 foreach ($line in Get-Content $logsFolder/teamcity-vcs.log*) {
     $currentPollDuration = Get-PollingDuration $line
     
     if ($currentPollDuration.GetType().Name -eq "TimeSpan") {
         $totalTime = $totalTime.Add($currentPollDuration)
-        $successfulPolls++
-
+        $status = Get-PollingStatus $line
+        Update-PollingCounts $status
         $time = Get-PollingTime $line
         $vcsRootName = Get-VcsRootName $line
         $vcsRootId = Get-VcsRootId $line
         $currentPollingAttempt = [PollingAttempt]::new(
             $time,
+            $status,
             $vcsRootName, 
             $vcsRootId,
             $currentPollDuration,
@@ -141,16 +193,14 @@ foreach ($line in Get-Content $logsFolder/teamcity-vcs.log*) {
 }
     
 ## Show general statistics
-
-[TimeSpan]$avgPollTime = $totalTime / $successfulPolls
+[TimeSpan]$avgPollTime = $totalTime / $finishedPollCount
 [TimeSpan]$suggestedPollingInterval = $avgPollTime * $vcsRootCount / $pollerThreadCount
 
-"Total time spent polling: $totalTime"
-"Sucessful polls: $successfulPolls"
+"Total time spent in finished polls: $totalTime"
+"Finished polls: $global:finishedPollCount ($global:successfulPollCount successful / $global:errorPollCount with errors)"
 "Average polling time: $avgPollTime"
 "It will take $suggestedPollingInterval to poll $vcsRootCount VCS Roots in $pollerThreadCount threads"
 
 ## Show longest polling attempts
-
 $sortedPolls = $pollingAttempts | Sort-Object -Property Duration -Descending
 Write-Output $sortedPolls
