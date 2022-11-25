@@ -14,7 +14,7 @@ function Get-BuildLogDelays {
     }
 
     foreach ($logFile in $logFilePaths)  {
-        Write-Output "`n`n" + "Analyzing log file " + $logFile.Split("/")[-1] + "`n" >> $outputFileName
+        "`n`n" + "Analyzing log file " + $logFile.Split("/")[-1] + "`n" >> $outputFileName
         Write-Debug "Analyzing file $logFile..."
 
         $logFileContent = Get-Content $logFile
@@ -60,18 +60,18 @@ function Get-BuildLogDelays {
                 $cummulativeDelay += $timeDiff
 
                 $currentLine >> $outputFileName
-                Write-Output ">>> Delay $delaySec s <<<" >> $outputFileName
+                ">>> Delay $delaySec s <<<" >> $outputFileName
                 $nextLine >> $outputFileName
-                Write-Output "" >> $outputFileName
+                "" >> $outputFileName
             }
 
             $currentLineIndex++
             $nextLineIndex++
         }
 
-        Write-Output "`n" + "Done analyzing log file " + $logFile.Split("/")[-1] >> $outputFileName
-        Write-Output "Total delays of $minDelaySec s or more: $delayCount" >> $outputFileName
-        Write-Output "Cummulative delay: $cummulativeDelay" + "`n" >> $outputFileName
+        "`n" + "Done analyzing log file " + $logFile.Split("/")[-1] >> $outputFileName
+        "Total delays of $minDelaySec s or more: $delayCount" >> $outputFileName
+        "Cummulative delay: $cummulativeDelay" + "`n" >> $outputFileName
     }
 }
 
